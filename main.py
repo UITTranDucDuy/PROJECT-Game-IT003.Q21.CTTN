@@ -21,9 +21,39 @@ class Game:
         self.is_running = True
         self.best_records = self.load_records()
         
+        # Load sounds
+        pygame.mixer.init()
+        self.sound_click = None
+        self.sound_connect = None
+        self.sound_wrong = None
+        self.sound_win = None
+        ASSETS_DIR = "assets"
+        
+        try:
+            self.sound_click = pygame.mixer.Sound(os.path.join(ASSETS_DIR, "click.wav"))
+            self.sound_connect = pygame.mixer.Sound(os.path.join(ASSETS_DIR, "connect.wav"))
+            self.sound_wrong = pygame.mixer.Sound(os.path.join(ASSETS_DIR, "wrong.wav"))
+            self.sound_win = pygame.mixer.Sound(os.path.join(ASSETS_DIR, "win.wav"))
+        except:
+            pass
+            
+        # Load background music
+        bgm_paths = [os.path.join(ASSETS_DIR, "bgm.mp3"),
+                     os.path.join(ASSETS_DIR, "bgm.ogg"),
+                     os.path.join(ASSETS_DIR, "bgm.wav")]
+        for p in bgm_paths:
+            if os.path.exists(p):
+                try:
+                    pygame.mixer.music.load(p)
+                    pygame.mixer.music.set_volume(0.3) # Giảm âm lượng nhạc nền xuống 30% để chill
+                    pygame.mixer.music.play(-1) # -1 để loop vô hạn
+                    break
+                except Exception as e:
+                    print("Lỗi tải nhạc nền:", e)
+        
         # Load hình ảnh icon
         self.icon_images = []
-        ASSETS_DIR = "assets"
+
         os.makedirs(ASSETS_DIR, exist_ok=True)
         valid_extensions = ('.png', '.jpg', '.jpeg', '.bmp')
         image_files = [f for f in os.listdir(ASSETS_DIR) if f.lower().endswith(valid_extensions)]
@@ -136,10 +166,13 @@ class Game:
 
     def handle_menu_click(self, pos):
         if self.easy_btn.collidepoint(pos):
+            if self.sound_click: self.sound_click.play()
             self.start_game(mode="EASY")
         elif self.hard_btn.collidepoint(pos):
+            if self.sound_click: self.sound_click.play()
             self.start_game(mode="HARD")
         elif hasattr(self, 'insane_btn') and self.insane_btn.collidepoint(pos):
+            if self.sound_click: self.sound_click.play()
             self.start_game(mode="INSANE")
 
     def draw_menu(self):
@@ -199,6 +232,7 @@ class Game:
         """Xử lý sự kiện khi người dùng click trái chuột."""
         # Kiểm tra nút Exit (có thể ấn bất cứ lúc nào khi đang chơi hoặc game over)
         if hasattr(self, 'exit_button_rect') and self.exit_button_rect.collidepoint(pos):
+            if self.sound_click: self.sound_click.play()
             self.state = "MENU"
             return
             
@@ -208,12 +242,14 @@ class Game:
             
         # Kiểm tra nút Pause
         if hasattr(self, 'pause_button_rect') and self.pause_button_rect.collidepoint(pos):
+            if self.sound_click: self.sound_click.play()
             self.state = "PAUSED"
             self.pause_time_start = time.time()
             return
             
         # Kiểm tra click vào nút Hint
         if hasattr(self, 'hint_button_rect') and self.hint_button_rect.collidepoint(pos):
+            if self.sound_click: self.sound_click.play()
             hint_result = self.board.find_hint()
             if hint_result:
                 self.hint_tiles = list(hint_result)
@@ -234,16 +270,19 @@ class Game:
             
         if self.selected_tile is None:
             # Chọn ô đầu tiên
+            if self.sound_click: self.sound_click.play()
             self.selected_tile = cell
         else:
             # Click ô thứ 2, là chính ô đó -> Mất chọn
             if self.selected_tile == cell:
+                if self.sound_click: self.sound_click.play()
                 self.selected_tile = None
             else:
                 # Kiểm tra kết nối 2 ô
                 valid_path = self.board.can_connect(self.selected_tile, cell)
                 
                 if len(valid_path) > 0: # Cặp hợp lệ
+                    if self.sound_connect: self.sound_connect.play()
                     self.score += 100
                     
                     # Vẽ hiệu ứng line
@@ -254,6 +293,7 @@ class Game:
                     self.selected_tile = None
                         
                 else: # Chọn sai -> Chọn lại
+                    if self.sound_wrong: self.sound_wrong.play()
                     if getattr(self, 'mode', 'EASY') == "INSANE":
                         self.wrong_tiles = [self.selected_tile, cell]
                         self.wrong_pair_timer = pygame.time.get_ticks()
@@ -435,6 +475,7 @@ class Game:
                 if self.board.is_game_over():
                     self.win = True
                     self.game_over = True
+                    if getattr(self, 'sound_win', None): self.sound_win.play()
                     mode_str = getattr(self, 'mode', 'EASY')
                     if self.time_elapsed < self.best_records.get(mode_str, float('inf')):
                         self.save_record(mode_str, self.time_elapsed)
